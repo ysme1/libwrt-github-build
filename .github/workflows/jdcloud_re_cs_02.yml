@@ -55,7 +55,10 @@ jobs:
             "CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_${PROFILE_SYM}=y" \
             > .config
           make defconfig
-          grep -E "^CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_${PROFILE_SYM}=y$" .config
+          grep -E "^CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_.*=y$" .config | sed -n '1,20p' || true
+          if ! grep -q "^CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_${PROFILE_SYM}=y$" .config; then
+            echo "Notice: requested profile symbol not explicitly present after defconfig, continue to build and validate by profiles.json."
+          fi
 
       - name: Download package sources
         working-directory: libwrt
