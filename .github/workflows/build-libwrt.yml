@@ -1,0 +1,76 @@
+name: Build LIBWRT
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "LIBWRT branch"
+        required: true
+        default: "25.12-nss"
+      target:
+        description: "Target system"
+        required: true
+        default: "qualcommax"
+      subtarget:
+        description: "Subtarget"
+        required: true
+        default: "ipq60xx"
+      device_profile:
+        description: "Device profile suffix (e.g. jdcloud_ax6600)"
+        required: true
+        default: "jdcloud_ax6600"
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            ack antlr3 asciidoc autoconf automake autopoint binutils bison \
+            build-essential bzip2 ccache cmake cpio curl device-tree-compiler \
+            flex gawk gcc-multilib g++-multilib genisoimage git gperf haveged \
+            help2man intltool libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev \
+            libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev \
+            libncursesw5-dev libreadline-dev libssl-dev libtool lrzsz mkisofs \
+            msmtp ninja-build p7zip p7zip-full patch pkgconf python3 \
+            python3-pyelftools python3-setuptools qemu-utils rsync scons \
+            squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim \
+            wget xmlto xxd zlib1g-dev
+
+      - name: Clone source
+        run: |
+          git clone -b "${{ inputs.branch }}" --depth 1 --single-branch \
+            https://github.com/LiBwrt/openwrt-6.x.git libwrt
+
+      - name: Update feeds
+        working-directory: libwrt
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Generate config
+        working-directory: libwrt
+        run: |
+          cat > .config <<EOF
+          CONFIG_TARGET_${{ inputs.target }}=y
+          CONFIG_TARGET_${{ inputs.target }}_${{ inputs.subtarget }}=y
+          CONFIG_TARGET_${{ inputs.target }}_${{ inputs.subtarget }}_DEVICE_${{ inputs.device_profile }}=y
+          EOF
+          make defconfig
+
+      - name: Download package sources
+        working-directory: libwrt
+        run: make -j"$(nproc)" download V=s
+
+      - name: Build firmware
+        working-directory: libwrt
+        run: make -j"$(nproc)" V=s
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libwrt-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.subtarget }}-${{ inputs.device_profile }}
+          path: libwrt/bin/targets/${{ inputs.target }}/${{ inputs.subtarget }}/*
+          if-no-files-found: error
