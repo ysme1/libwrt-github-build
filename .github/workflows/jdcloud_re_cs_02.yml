@@ -49,12 +49,13 @@ jobs:
       - name: Generate config
         working-directory: libwrt
         run: |
-          cat > .config <<EOF
-          CONFIG_TARGET_${TARGET}=y
-          CONFIG_TARGET_${TARGET}_${SUBTARGET}=y
-          CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_${PROFILE_SYM}=y
-          EOF
+          printf '%s\n' \
+            "CONFIG_TARGET_${TARGET}=y" \
+            "CONFIG_TARGET_${TARGET}_${SUBTARGET}=y" \
+            "CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_${PROFILE_SYM}=y" \
+            > .config
           make defconfig
+          grep -E "^CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_${PROFILE_SYM}=y$" .config
 
       - name: Download package sources
         working-directory: libwrt
