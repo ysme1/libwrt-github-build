@@ -10,22 +10,15 @@ on:
         description: "LIBWRT branch"
         required: true
         default: "25.12-nss"
-      target:
-        description: "Target system"
-        required: true
-        default: "qualcommax"
-      subtarget:
-        description: "Subtarget"
-        required: true
-        default: "ipq60xx"
-      device_profile:
-        description: "Device profile suffix (e.g. jdcloud_ax6600)"
-        required: true
-        default: "jdcloud_re-cs-02"
 
 jobs:
   build:
     runs-on: ubuntu-22.04
+    env:
+      TARGET: qualcommax
+      SUBTARGET: ipq60xx
+      DEVICE_PROFILE: jdcloud_re-cs-02
+      PROFILE_SYM: jdcloud_re_cs_02
     steps:
       - name: Install dependencies
         run: |
@@ -54,18 +47,14 @@ jobs:
           ./scripts/feeds install -a
 
       - name: Generate config
-        id: gen_config
         working-directory: libwrt
         run: |
-          # OpenWrt config symbols use underscores; allow users to input either '-' or '_'.
-          PROFILE_SYM="$(echo "${{ inputs.device_profile }}" | tr '-' '_')"
           cat > .config <<EOF
-          CONFIG_TARGET_${{ inputs.target }}=y
-          CONFIG_TARGET_${{ inputs.target }}_${{ inputs.subtarget }}=y
-          CONFIG_TARGET_${{ inputs.target }}_${{ inputs.subtarget }}_DEVICE_${PROFILE_SYM}=y
+          CONFIG_TARGET_${TARGET}=y
+          CONFIG_TARGET_${TARGET}_${SUBTARGET}=y
+          CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_${PROFILE_SYM}=y
           EOF
           make defconfig
-          echo "profile_sym=${PROFILE_SYM}" >> "$GITHUB_OUTPUT"
 
       - name: Download package sources
         working-directory: libwrt
@@ -79,47 +68,35 @@ jobs:
         working-directory: libwrt
         run: |
           set -e
-          PROFILE_RAW="${{ inputs.device_profile }}"
-          TARGET_DIR="bin/targets/${{ inputs.target }}/${{ inputs.subtarget }}"
+          PROFILE_RAW="${DEVICE_PROFILE}"
+          TARGET_DIR="bin/targets/${TARGET}/${SUBTARGET}"
           PROFILE_JSON="$TARGET_DIR/profiles.json"
           if [ ! -f "$PROFILE_JSON" ]; then
             echo "profiles.json not found: $PROFILE_JSON"
             exit 1
           fi
-          python3 - <<'PY'
-          import json, os, sys
-          profile = os.environ["PROFILE_RAW"]
-          pj = os.environ["PROFILE_JSON"]
-          with open(pj, "r", encoding="utf-8") as f:
-              data = json.load(f)
-          profiles = data.get("profiles", {})
-          if profile not in profiles:
-              print(f"Requested profile '{profile}' not found in profiles.json")
-              print("Available profiles sample:", ", ".join(list(profiles.keys())[:30]))
-              sys.exit(1)
-          print(f"Profile found: {profile}")
-          PY
+          python3 -c "import json,os,sys; p=os.environ['PROFILE_RAW']; pj=os.environ['PROFILE_JSON']; d=json.load(open(pj,'r',encoding='utf-8')); ps=d.get('profiles',{}); print('Profile found:', p) if p in ps else (print(f\"Requested profile '{p}' not found in profiles.json\"), print('Available profiles sample:', ', '.join(list(ps.keys())[:30])), sys.exit(1))"
         env:
-          PROFILE_RAW: ${{ inputs.device_profile }}
-          PROFILE_JSON: bin/targets/${{ inputs.target }}/${{ inputs.subtarget }}/profiles.json
+          PROFILE_RAW: ${{ env.DEVICE_PROFILE }}
+          PROFILE_JSON: bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/profiles.json
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: libwrt-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.subtarget }}-${{ inputs.device_profile }}
-          path: libwrt/bin/targets/${{ inputs.target }}/${{ inputs.subtarget }}/*
+          name: libwrt-${{ inputs.branch }}-${{ env.TARGET }}-${{ env.SUBTARGET }}-${{ env.DEVICE_PROFILE }}
+          path: libwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*
           if-no-files-found: error
 
       - name: Prepare release files
         id: release_meta
         run: |
           set -e
-          TARGET_DIR="libwrt/bin/targets/${{ inputs.target }}/${{ inputs.subtarget }}"
+          TARGET_DIR="libwrt/bin/targets/${TARGET}/${SUBTARGET}"
           RELEASE_DIR="release"
           mkdir -p "$RELEASE_DIR"
 
           BUILD_TIME="$(date -u +%Y%m%d-%H%M%S)"
-          TAG="libwrt-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.subtarget }}-${{ steps.gen_config.outputs.profile_sym }}-${BUILD_TIME}"
+          TAG="libwrt-${{ inputs.branch }}-${TARGET}-${SUBTARGET}-${PROFILE_SYM}-${BUILD_TIME}"
           ARCHIVE_NAME="${TAG}.tar.gz"
 
           tar -C "$TARGET_DIR" -czf "$RELEASE_DIR/$ARCHIVE_NAME" .
@@ -139,8 +116,8 @@ jobs:
           prerelease: false
           body: |
             Branch: `${{ inputs.branch }}`
-            Target: `${{ inputs.target }}/${{ inputs.subtarget }}`
-            Device: `${{ inputs.device_profile }}`
+            Target: `${{ env.TARGET }}/${{ env.SUBTARGET }}`
+            Device: `${{ env.DEVICE_PROFILE }}`
             Run: `${{ github.run_number }}`
           files: |
             release/*
