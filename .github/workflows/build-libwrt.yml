@@ -87,18 +87,18 @@ jobs:
             exit 1
           fi
           python3 - <<'PY'
-import json, os, sys
-profile = os.environ["PROFILE_RAW"]
-pj = os.environ["PROFILE_JSON"]
-with open(pj, "r", encoding="utf-8") as f:
-    data = json.load(f)
-profiles = data.get("profiles", {})
-if profile not in profiles:
-    print(f"Requested profile '{profile}' not found in profiles.json")
-    print("Available profiles sample:", ", ".join(list(profiles.keys())[:30]))
-    sys.exit(1)
-print(f"Profile found: {profile}")
-PY
+          import json, os, sys
+          profile = os.environ["PROFILE_RAW"]
+          pj = os.environ["PROFILE_JSON"]
+          with open(pj, "r", encoding="utf-8") as f:
+              data = json.load(f)
+          profiles = data.get("profiles", {})
+          if profile not in profiles:
+              print(f"Requested profile '{profile}' not found in profiles.json")
+              print("Available profiles sample:", ", ".join(list(profiles.keys())[:30]))
+              sys.exit(1)
+          print(f"Profile found: {profile}")
+          PY
         env:
           PROFILE_RAW: ${{ inputs.device_profile }}
           PROFILE_JSON: bin/targets/${{ inputs.target }}/${{ inputs.subtarget }}/profiles.json
