@@ -1,5 +1,8 @@
 name: Build LIBWRT
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -74,3 +77,38 @@ jobs:
           name: libwrt-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.subtarget }}-${{ inputs.device_profile }}
           path: libwrt/bin/targets/${{ inputs.target }}/${{ inputs.subtarget }}/*
           if-no-files-found: error
+
+      - name: Prepare release files
+        id: release_meta
+        run: |
+          set -e
+          TARGET_DIR="libwrt/bin/targets/${{ inputs.target }}/${{ inputs.subtarget }}"
+          RELEASE_DIR="release"
+          mkdir -p "$RELEASE_DIR"
+
+          BUILD_TIME="$(date -u +%Y%m%d-%H%M%S)"
+          TAG="libwrt-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.subtarget }}-${{ inputs.device_profile }}-${BUILD_TIME}"
+          ARCHIVE_NAME="${TAG}.tar.gz"
+
+          tar -C "$TARGET_DIR" -czf "$RELEASE_DIR/$ARCHIVE_NAME" .
+          cp "$TARGET_DIR/sha256sums" "$RELEASE_DIR/sha256sums" || true
+          cp "$TARGET_DIR/"*.buildinfo "$RELEASE_DIR/" || true
+          cp "$TARGET_DIR/profiles.json" "$RELEASE_DIR/profiles.json" || true
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "archive=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: ${{ steps.release_meta.outputs.tag }}
+          draft: false
+          prerelease: false
+          body: |
+            Branch: `${{ inputs.branch }}`
+            Target: `${{ inputs.target }}/${{ inputs.subtarget }}`
+            Device: `${{ inputs.device_profile }}`
+            Run: `${{ github.run_number }}`
+          files: |
+            release/*
