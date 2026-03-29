@@ -18,7 +18,8 @@ jobs:
       TARGET: qualcommax
       SUBTARGET: ipq60xx
       DEVICE_PROFILE: jdcloud_re-cs-02
-      PROFILE_SYM: jdcloud_re_cs_02
+      PROFILE_CONFIG: jdcloud_re-cs-02
+      PROFILE_TAG: jdcloud_re_cs_02
     steps:
       - name: Install dependencies
         run: |
@@ -52,11 +53,11 @@ jobs:
           printf '%s\n' \
             "CONFIG_TARGET_${TARGET}=y" \
             "CONFIG_TARGET_${TARGET}_${SUBTARGET}=y" \
-            "CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_${PROFILE_SYM}=y" \
+            "CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_${PROFILE_CONFIG}=y" \
             > .config
           make defconfig
           grep -E "^CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_.*=y$" .config | sed -n '1,20p' || true
-          if ! grep -q "^CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_${PROFILE_SYM}=y$" .config; then
+          if ! grep -q "^CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_${PROFILE_CONFIG}=y$" .config; then
             echo "Notice: requested profile symbol not explicitly present after defconfig, continue to build and validate by profiles.json."
           fi
 
@@ -100,7 +101,7 @@ jobs:
           mkdir -p "$RELEASE_DIR"
 
           BUILD_TIME="$(date -u +%Y%m%d-%H%M%S)"
-          TAG="jdcloud_re_cs_02-${{ inputs.branch }}-${BUILD_TIME}"
+          TAG="${PROFILE_TAG}-${{ inputs.branch }}-${BUILD_TIME}"
           ARCHIVE_NAME="${TAG}.tar.gz"
 
           tar -C "$TARGET_DIR" -czf "$RELEASE_DIR/$ARCHIVE_NAME" .
