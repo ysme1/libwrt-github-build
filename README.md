@@ -5,7 +5,7 @@
 当前工作流基于上游源码：
 
 - 源码仓库：`https://github.com/laipeng668/openwrt-6.x.git`
-- 默认分支：`main-nss`
+- 默认分支：`25.12-nss`
 - 默认目标：`qualcommax/ipq60xx`
 - 默认时区：`Asia/Shanghai`
 
