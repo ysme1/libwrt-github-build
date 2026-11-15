@@ -29,11 +29,15 @@ sed -i "s#_('Firmware Version'), (L\.isObject(boardinfo\.release) ? boardinfo\.r
 # 调节IPQ60XX的1.5GHz频率电压(从0.9375V提高到0.95V，过低可能导致不稳定，过高可能增加功耗和发热，具体数值需要根据实际情况调整)
 # sed -i 's/opp-microvolt = <937500>;/opp-microvolt = <950000>;/' target/linux/qualcommax/patches-6.12/0038-v6.16-arm64-dts-qcom-ipq6018-add-1.5GHz-CPU-Frequency.patch
 
-# 2. 安装并配置 Rust
+# 安装并配置 Rust
 if ! command -v cargo >/dev/null 2>&1; then
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
-    export PATH="$HOME/.cargo/bin:$PATH"
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+      | sh -s -- -y --profile minimal --default-toolchain stable
 fi
+
+echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+export PATH="$HOME/.cargo/bin:$PATH"
+
 rustup target add aarch64-unknown-linux-musl
 
 # 移除要替换的包
